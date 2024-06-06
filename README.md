@@ -1,3 +1,5 @@
+![图片](/screenshot.png)
+
 ## 对开源项目CyberChef的汉化翻译
 
 原项目地址：[https://github.com/gchq/CyberChef](https://github.com/gchq/CyberChef)
@@ -6,7 +8,7 @@
 
 > 本项目仅支持在Linux/MacOS下编译
 
-1. 安装nodejs：下载https://nodejs.org/en/download/中的linux安装包，然后解压复制文件
+1. 安装nodejs：下载[https://nodejs.org/en/download/](https://nodejs.org/en/download)中的linux安装包，然后解压复制文件
 ```
 tar -xf node-v20.11.1-linux-x64.tar
 sudo mv node-v20.11.1-linux-x64/bin/* /usr/local/bin/
@@ -40,7 +42,3 @@ npm run build
 ## 进度
 
 仅完成了界面的初步翻译，编码类型仅翻译了Base64，F1也很多没翻译，后续有待完善。
-
-## 截图
-
-![图片](/screenshot.png)
