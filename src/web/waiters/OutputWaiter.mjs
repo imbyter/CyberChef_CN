@@ -7,7 +7,6 @@
 
 import Utils, {debounce} from "../../core/Utils.mjs";
 import Dish from "../../core/Dish.mjs";
-import {isUTF8, CHR_ENC_SIMPLE_REVERSE_LOOKUP} from "../../core/lib/ChrEnc.mjs";
 import {detectFileType} from "../../core/lib/FileType.mjs";
 import FileSaver from "file-saver";
 import ZipWorker from "worker-loader?inline=no-fallback!../workers/ZipWorker.mjs";
@@ -39,7 +38,7 @@ import {
 import {statusBar} from "../utils/statusBar.mjs";
 import {htmlPlugin} from "../utils/htmlWidget.mjs";
 import {copyOverride} from "../utils/copyOverride.mjs";
-import {eolCodeToSeq, eolCodeToName, renderSpecialChar} from "../utils/editorUtils.mjs";
+import {renderSpecialChar} from "../utils/editorUtils.mjs";
 
 
 /**
@@ -71,8 +70,6 @@ class OutputWaiter {
         this.zipWorker = null;
         this.maxTabs = this.manager.tabs.calcMaxTabs();
         this.tabTimeout = null;
-        this.eolState = 0; // 0 = unset, 1 = detected, 2 = manual
-        this.encodingState = 0; // 0 = unset, 1 = detected, 2 = manual
     }
 
     /**
@@ -112,8 +109,6 @@ class OutputWaiter {
                     eolHandler: this.eolChange.bind(this),
                     chrEncHandler: this.chrEncChange.bind(this),
                     chrEncGetter: this.getChrEnc.bind(this),
-                    getEncodingState: this.getEncodingState.bind(this),
-                    getEOLState: this.getEOLState.bind(this),
                     htmlOutput: this.htmlOutput
                 }),
                 htmlPlugin(this.htmlOutput),
@@ -142,7 +137,6 @@ class OutputWaiter {
             ]
         });
 
-        if (this.outputEditorView) this.outputEditorView.destroy();
         this.outputEditorView = new EditorView({
             state: initialState,
             parent: this.outputTextEl
@@ -152,21 +146,9 @@ class OutputWaiter {
     /**
      * Handler for EOL change events
      * Sets the line separator
-     * @param {string} eol
-     * @param {boolean} [manual=false]
+     * @param {string} eolVal
      */
-    async eolChange(eol, manual=false) {
-        const eolVal = eolCodeToSeq[eol];
-        if (eolVal === undefined) return;
-
-        this.eolState = manual ? 2 : this.eolState;
-        if (this.eolState < 2 && eolVal === this.getEOLSeq()) return;
-
-        if (this.eolState === 1) {
-            // Alert
-            this.app.alert(`Output end of line separator has been detected and changed to ${eolCodeToName[eol]}`, 5000);
-        }
-
+    async eolChange(eolVal) {
         const currentTabNum = this.manager.tabs.getActiveTab("output");
         if (currentTabNum >= 0) {
             this.outputs[currentTabNum].eolSequence = eolVal;
@@ -199,22 +181,12 @@ class OutputWaiter {
     }
 
     /**
-     * Returns whether the output EOL sequence was set manually or has been detected automatically
-     * @returns {number} - 0 = unset, 1 = detected, 2 = manual
-     */
-    getEOLState() {
-        return this.eolState;
-    }
-
-    /**
      * Handler for Chr Enc change events
      * Sets the output character encoding
      * @param {number} chrEncVal
-     * @param {boolean} [manual=false]
      */
-    async chrEncChange(chrEncVal, manual=false) {
+    async chrEncChange(chrEncVal) {
         if (typeof chrEncVal !== "number") return;
-        const currentEnc = this.getChrEnc();
 
         const currentTabNum = this.manager.tabs.getActiveTab("output");
         if (currentTabNum >= 0) {
@@ -223,17 +195,10 @@ class OutputWaiter {
             throw new Error(`Cannot change output ${currentTabNum} chrEnc to ${chrEncVal}`);
         }
 
-        this.encodingState = manual ? 2 : this.encodingState;
-
-        if (this.encodingState > 1) {
-            // Reset the output, forcing it to re-decode the data with the new character encoding
-            await this.setOutput(this.currentOutputCache, true);
-            // Update the URL manually since we aren't firing a statechange event
-            this.app.updateURL(true);
-        } else if (currentEnc !== chrEncVal) {
-            // Alert
-            this.app.alert(`Output character encoding has been detected and changed to ${CHR_ENC_SIMPLE_REVERSE_LOOKUP[chrEncVal] || "Raw Bytes"}`, 5000);
-        }
+        // Reset the output, forcing it to re-decode the data with the new character encoding
+        await this.setOutput(this.currentOutputCache, true);
+        // Update the URL manually since we aren't firing a statechange event
+        this.app.updateURL(true);
     }
 
     /**
@@ -246,14 +211,6 @@ class OutputWaiter {
             return 0;
         }
         return this.outputs[currentTabNum].encoding;
-    }
-
-    /**
-     * Returns whether the output character encoding was set manually or has been detected automatically
-     * @returns {number} - 0 = unset, 1 = detected, 2 = manual
-     */
-    getEncodingState() {
-        return this.encodingState;
     }
 
     /**
@@ -291,7 +248,6 @@ class OutputWaiter {
         const tabNum = this.manager.tabs.getActiveTab("output");
         this.manager.timing.recordTime("outputDecodingStart", tabNum);
         if (data instanceof ArrayBuffer) {
-            await this.detectEncoding(data);
             data = await this.bufferToStr(data);
         }
         this.manager.timing.recordTime("outputDecodingEnd", tabNum);
@@ -319,9 +275,6 @@ class OutputWaiter {
 
         // If turning word wrap off, do it before we populate the editor for performance reasons
         if (!wrap) this.setWordWrap(wrap);
-
-        // Detect suitable EOL sequence
-        this.detectEOLSequence(data);
 
         // We use setTimeout here to delay the editor dispatch until the next event cycle,
         // ensuring all async actions have completed before attempting to set the contents
@@ -390,85 +343,6 @@ class OutputWaiter {
                 insert: ""
             }
         });
-    }
-
-    /**
-     * Checks whether the EOL separator should be updated
-     *
-     * @param {string} data
-     */
-    detectEOLSequence(data) {
-        // If EOL has been fixed, skip this.
-        if (this.eolState > 1) return;
-        // If data is too long, skip this.
-        if (data.length > 1000000) return;
-
-        // Detect most likely EOL sequence
-        const eolCharCounts = {
-            "LF": data.count("\u000a"),
-            "VT": data.count("\u000b"),
-            "FF": data.count("\u000c"),
-            "CR": data.count("\u000d"),
-            "CRLF": data.count("\u000d\u000a"),
-            "NEL": data.count("\u0085"),
-            "LS": data.count("\u2028"),
-            "PS": data.count("\u2029")
-        };
-
-        // If all zero, leave alone
-        const total = Object.values(eolCharCounts).reduce((acc, curr) => {
-            return acc + curr;
-        }, 0);
-        if (total === 0) return;
-
-        // Find most prevalent line ending sequence
-        const highest = Object.entries(eolCharCounts).reduce((acc, curr) => {
-            return curr[1] > acc[1] ? curr : acc;
-        }, ["LF", 0]);
-        let choice = highest[0];
-
-        // If CRLF not zero and more than half the highest alternative, choose CRLF
-        if ((eolCharCounts.CRLF * 2) > highest[1]) {
-            choice = "CRLF";
-        }
-
-        const eolVal = eolCodeToSeq[choice];
-        if (eolVal === this.getEOLSeq()) return;
-
-        // Setting automatically
-        this.eolState = 1;
-        this.eolChange(choice);
-    }
-
-    /**
-     * Checks whether the character encoding should be updated.
-     *
-     * @param {ArrayBuffer} data
-     */
-    async detectEncoding(data) {
-        // If encoding has been fixed, skip this.
-        if (this.encodingState > 1) return;
-        // If data is too long, skip this.
-        if (data.byteLength > 1000000) return;
-
-        const enc = isUTF8(data); // 0 = not UTF8, 1 = ASCII, 2 = UTF8
-
-        switch (enc) {
-            case 0: // not UTF8
-                // Set to Raw Bytes
-                this.encodingState = 1;
-                await this.chrEncChange(0, false);
-                break;
-            case 2: // UTF8
-                // Set to UTF8
-                this.encodingState = 1;
-                await this.chrEncChange(65001, false);
-                break;
-            case 1: // ASCII
-            default:
-                // Ignore
-                break;
-        }
     }
 
     /**
@@ -1406,7 +1280,7 @@ class OutputWaiter {
         if (options[0].recipe.length) {
             const opSequence = options[0].recipe.map(o => o.op).join(", ");
             newRecipeConfig = currentRecipeConfig.concat(options[0].recipe);
-            msg = `<i>${opSequence}</i> will produce <span class="data-text">"${Utils.escapeHtml(Utils.truncate(options[0].data), 30)}"</span>`;
+            msg = `使用 <i>${opSequence}</i> 将会得到 <span class="data-text">"${Utils.escapeHtml(Utils.truncate(options[0].data), 30)}"</span>`;
         } else if (options[0].fileType && options[0].fileType.name) {
             const ft = options[0].fileType;
             newRecipeConfig = currentRecipeConfig.concat([{op: "Detect File Type", args: []}]);
@@ -1541,12 +1415,10 @@ class OutputWaiter {
             this.app.ioSplitter.collapse(0);
 
             $(el).attr("data-original-title", "Restore output pane");
-            $(el).attr("aria-label", "Restore output pane");
             el.querySelector("i").innerHTML = "fullscreen_exit";
         } else {
             document.body.classList.remove("output-maximised");
             $(el).attr("data-original-title", "Maximise output pane");
-            $(el).attr("aria-label", "Maximise output pane");
             el.querySelector("i").innerHTML = "fullscreen";
             this.app.initialiseSplitter(false);
             this.app.resetLayout();

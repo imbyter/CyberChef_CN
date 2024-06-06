@@ -50,7 +50,6 @@ class OptionsWaiter {
 
         // Initialise options
         this.setWordWrap();
-        this.manager.ops.setCatCount();
     }
 
 

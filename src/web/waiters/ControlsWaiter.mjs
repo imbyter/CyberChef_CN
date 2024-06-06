@@ -5,7 +5,6 @@
  */
 
 import Utils from "../../core/Utils.mjs";
-import { eolSeqToCode } from "../utils/editorUtils.mjs";
 
 
 /**
@@ -36,11 +35,6 @@ class ControlsWaiter {
             boundary: "viewport",
             trigger: "hover"
         });
-
-        // Set number of operations in various places in the DOM
-        document.querySelectorAll(".num-ops").forEach(el => {
-            el.innerHTML = Object.keys(this.app.operations).length;
-        });
     }
 
 
@@ -63,9 +57,9 @@ class ControlsWaiter {
      */
     bakeClick() {
         const btnBake = document.getElementById("bake");
-        if (btnBake.textContent.indexOf("Bake") > 0) {
+        if (btnBake.textContent.indexOf("处理") > 0) {
             this.app.manager.input.bakeAll();
-        } else if (btnBake.textContent.indexOf("Cancel") > 0) {
+        } else if (btnBake.textContent.indexOf("取消") > 0) {
             this.manager.worker.cancelBake(false, true);
         }
     }
@@ -146,16 +140,16 @@ class ControlsWaiter {
 
         const inputChrEnc = this.manager.input.getChrEnc();
         const outputChrEnc = this.manager.output.getChrEnc();
-        const inputEOL = eolSeqToCode[this.manager.input.getEOLSeq()];
-        const outputEOL = eolSeqToCode[this.manager.output.getEOLSeq()];
+        const inputEOLSeq = this.manager.input.getEOLSeq();
+        const outputEOLSeq = this.manager.output.getEOLSeq();
 
         const params = [
             includeRecipe ? ["recipe", recipeStr] : undefined,
             includeInput && input.length ? ["input", Utils.escapeHtml(input)] : undefined,
             inputChrEnc !== 0 ? ["ienc", inputChrEnc] : undefined,
             outputChrEnc !== 0 ? ["oenc", outputChrEnc] : undefined,
-            inputEOL !== "LF" ? ["ieol", inputEOL] : undefined,
-            outputEOL !== "LF" ? ["oeol", outputEOL] : undefined
+            inputEOLSeq !== "\n" ? ["ieol", inputEOLSeq] : undefined,
+            outputEOLSeq !== "\n" ? ["oeol", outputEOLSeq] : undefined
         ];
 
         const hash = params
@@ -351,36 +345,6 @@ class ControlsWaiter {
 
 
     /**
-     * Hides the arguments for all the operations in the current recipe.
-     */
-    hideRecipeArgsClick() {
-        const icon = document.getElementById("hide-icon");
-
-        if (icon.getAttribute("hide-args") === "false") {
-            icon.setAttribute("hide-args", "true");
-            icon.setAttribute("data-original-title", "Show arguments");
-            icon.children[0].innerText = "keyboard_arrow_down";
-            Array.from(document.getElementsByClassName("hide-args-icon")).forEach(function(item) {
-                item.setAttribute("hide-args", "true");
-                item.innerText = "keyboard_arrow_down";
-                item.classList.add("hide-args-selected");
-                item.parentNode.previousElementSibling.style.display = "none";
-            });
-        } else {
-            icon.setAttribute("hide-args", "false");
-            icon.setAttribute("data-original-title", "Hide arguments");
-            icon.children[0].innerText = "keyboard_arrow_up";
-            Array.from(document.getElementsByClassName("hide-args-icon")).forEach(function(item) {
-                item.setAttribute("hide-args", "false");
-                item.innerText = "keyboard_arrow_up";
-                item.classList.remove("hide-args-selected");
-                item.parentNode.previousElementSibling.style.display = "grid";
-            });
-        }
-    }
-
-
-    /**
      * Populates the bug report information box with useful technical info.
      *
      * @param {event} e
@@ -434,21 +398,21 @@ ${navigator.userAgent}
 
         switch (func) {
             case "cancel":
-                btnText.innerText = "Cancel";
+                btnText.innerText = "取消";
                 bakeButton.classList.remove("btn-success");
                 bakeButton.classList.remove("btn-warning");
                 bakeButton.classList.add("btn-danger");
                 break;
             case "loading":
                 bakeButton.style.background = "";
-                btnText.innerText = "Loading...";
+                btnText.innerText = "加载...";
                 bakeButton.classList.remove("btn-success");
                 bakeButton.classList.remove("btn-danger");
                 bakeButton.classList.add("btn-warning");
                 break;
             default:
                 bakeButton.style.background = "";
-                btnText.innerText = "Bake!";
+                btnText.innerText = "处理";
                 bakeButton.classList.remove("btn-danger");
                 bakeButton.classList.remove("btn-warning");
                 bakeButton.classList.add("btn-success");

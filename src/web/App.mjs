@@ -10,7 +10,6 @@ import Manager from "./Manager.mjs";
 import HTMLCategory from "./HTMLCategory.mjs";
 import HTMLOperation from "./HTMLOperation.mjs";
 import Split from "split.js";
-import moment from "moment-timezone";
 import cptable from "codepage";
 
 
@@ -39,14 +38,13 @@ class App {
 
         this.baking        = false;
         this.autoBake_     = false;
+        this.autoBakePause = false;
         this.progress      = 0;
         this.ingId         = 0;
 
         this.appLoaded     = false;
         this.workerLoaded  = false;
         this.waitersLoaded = false;
-
-        this.snackbars     = [];
     }
 
 
@@ -154,12 +152,12 @@ class App {
      * Runs Auto Bake if it is set.
      */
     autoBake() {
-        if (this.baking) {
-            this.manager.worker.cancelBakeForAutoBake();
-            this.baking = false;
-        }
+        // If autoBakePause is set, we are loading a full recipe (and potentially input), so there is no
+        // need to set the staleness indicator. Just exit and wait until auto bake is called after loading
+        // has completed.
+        if (this.autoBakePause) return false;
 
-        if (this.autoBake_) {
+        if (this.autoBake_ && !this.baking) {
             log.debug("Auto-baking");
             this.manager.worker.bakeInputs({
                 nums: [this.manager.tabs.getActiveTab("input")],
@@ -472,6 +470,7 @@ class App {
      * @fires Manager#statechange
      */
     loadURIParams(params=this.getURIParams()) {
+        this.autoBakePause = true;
         this.uriParams = params;
 
         // Read in recipe from URI params
@@ -500,22 +499,22 @@ class App {
         // Input Character Encoding
         // Must be set before the input is loaded
         if (this.uriParams.ienc) {
-            this.manager.input.chrEncChange(parseInt(this.uriParams.ienc, 10), true, true);
+            this.manager.input.chrEncChange(parseInt(this.uriParams.ienc, 10));
         }
 
         // Output Character Encoding
         if (this.uriParams.oenc) {
-            this.manager.output.chrEncChange(parseInt(this.uriParams.oenc, 10), true);
+            this.manager.output.chrEncChange(parseInt(this.uriParams.oenc, 10));
         }
 
         // Input EOL sequence
         if (this.uriParams.ieol) {
-            this.manager.input.eolChange(this.uriParams.ieol, true);
+            this.manager.input.eolChange(this.uriParams.ieol);
         }
 
         // Output EOL sequence
         if (this.uriParams.oeol) {
-            this.manager.output.eolChange(this.uriParams.oeol, true);
+            this.manager.output.eolChange(this.uriParams.oeol);
         }
 
         // Read in input data from URI params
@@ -538,6 +537,7 @@ class App {
             this.manager.options.changeTheme(Utils.escapeHtml(this.uriParams.theme));
         }
 
+        this.autoBakePause = false;
         window.dispatchEvent(this.manager.statechange);
     }
 
@@ -570,6 +570,10 @@ class App {
      */
     setRecipeConfig(recipeConfig) {
         document.getElementById("rec-list").innerHTML = null;
+
+        // Pause auto-bake while loading but don't modify `this.autoBake_`
+        // otherwise `manualBake` cannot trigger.
+        this.autoBakePause = true;
 
         for (let i = 0; i < recipeConfig.length; i++) {
             const item = this.manager.recipe.addOperation(recipeConfig[i].op);
@@ -605,6 +609,9 @@ class App {
 
             this.progress = 0;
         }
+
+        // Unpause auto bake
+        this.autoBakePause = false;
     }
 
 
@@ -633,9 +640,6 @@ class App {
      */
     setCompileMessage() {
         // Display time since last build and compile message
-        const now = new Date(),
-            msSinceCompile = now.getTime() - window.compileTime,
-            timeSinceCompile = moment.duration(msSinceCompile, "milliseconds").humanize();
 
         // Calculate previous version to compare to
         const prev = PKG_VERSION.split(".").map(n => {
@@ -645,16 +649,8 @@ class App {
         else if (prev[1] > 0) prev[1]--;
         else prev[0]--;
 
-        // const compareURL = `https://github.com/gchq/CyberChef/compare/v${prev.join(".")}...v${PKG_VERSION}`;
-
-        let compileInfo = `<a href='https://github.com/gchq/CyberChef/blob/master/CHANGELOG.md'>Last build: ${timeSinceCompile.substr(0, 1).toUpperCase() + timeSinceCompile.substr(1)} ago</a>`;
-
-        if (window.compileMessage !== "") {
-            compileInfo += " - " + window.compileMessage;
-        }
-
         const notice = document.getElementById("notice");
-        notice.innerHTML = compileInfo;
+        notice.innerHTML = "本工具由<a href='https://imbyter.com/'>imbyter师哥</a>汉化翻译，详细使用教程见<a target='_blank' href='https://docs.qq.com/aio/p/scud278708l76eh?p=ZlqxjJ9ujgH19cYmOTkNEHF'>加解密神器CyberChef</a>，愿对你有所帮助";
         notice.setAttribute("title", Utils.stripHtmlTags(window.compileMessage));
         notice.setAttribute("data-help-title", "Last build");
         notice.setAttribute("data-help", "This live version of CyberChef is updated whenever new commits are added to the master branch of the CyberChef repository. It represents the latest, most up-to-date build of CyberChef.");
@@ -700,14 +696,14 @@ class App {
         log.info("[" + time.toLocaleString() + "] " + str);
         if (silent) return;
 
-        this.snackbars.push($.snackbar({
+        this.currentSnackbar = $.snackbar({
             content: str,
             timeout: timeout,
             htmlAllowed: true,
             onClose: () => {
-                this.snackbars.shift().remove();
+                this.currentSnackbar.remove();
             }
-        }));
+        });
     }
 
 
@@ -783,7 +779,7 @@ class App {
     updateURL(includeInput, input=null, changeUrl=true) {
         // Set title
         const recipeConfig = this.getRecipeConfig();
-        let title = "CyberChef";
+        let title = "CyberChef中文版 - imbyter";
         if (recipeConfig.length === 1) {
             title = `${recipeConfig[0].op} - ${title}`;
         } else if (recipeConfig.length > 1) {

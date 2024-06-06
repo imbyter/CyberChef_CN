@@ -893,7 +893,7 @@ class Utils {
 
 
     /**
-     * Converts a string to its title case equivalent.
+     * Converts a string to it's title case equivalent.
      *
      * @param {string} str
      * @returns string
@@ -1088,17 +1088,17 @@ class Utils {
                                 href='#collapse${i}'
                                 aria-expanded='false'
                                 aria-controls='collapse${i}'
-                                title="Show/hide contents of '${Utils.escapeHtml(file.name)}'">
+                                title="显示/隐藏 '${Utils.escapeHtml(file.name)}' 的内容">
                                 ${Utils.escapeHtml(file.name)}</a>
                             <span class='float-right' style="margin-top: -3px">
                                 ${file.size.toLocaleString()} bytes
-                                <a title="Download ${Utils.escapeHtml(file.name)}"
+                                <a title="下载 ${Utils.escapeHtml(file.name)}"
                                     href="${blobURL}"
                                     download="${Utils.escapeHtml(file.name)}"
                                     data-toggle="tooltip">
                                     <i class="material-icons" style="vertical-align: bottom">save</i>
                                 </a>
-                                <a title="Move to input"
+                                <a title="移动到输入"
                                     href="#"
                                     blob-url="${blobURL}"
                                     file-name="${Utils.escapeHtml(file.name)}"

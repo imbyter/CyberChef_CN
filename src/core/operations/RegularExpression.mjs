@@ -22,7 +22,7 @@ class RegularExpression extends Operation {
 
         this.name = "Regular expression";
         this.module = "Regex";
-        this.description = "Define your own regular expression (regex) to search the input data with, optionally choosing from a list of pre-defined patterns.<br><br>Supports extended regex syntax including the 'dot matches all' flag, named capture groups, full unicode coverage (including <code>\\p{}</code> categories and scripts as well as astral codes) and recursive matching.";
+        this.description = "定义您自己的正则表达式（regex）来搜索输入的数据，可以从预定义模式列表中进行选择。<br><br>Supports extended regex syntax including the 'dot matches all' flag, named capture groups, full unicode coverage (including <code>\\p{}</code> categories and scripts as well as astral codes) and recursive matching.";
         this.infoURL = "https://wikipedia.org/wiki/Regular_expression";
         this.inputType = "string";
         this.outputType = "html";
@@ -68,10 +68,6 @@ class RegularExpression extends Operation {
                         value: "[A-Fa-f\\d]{2}(?:[:-][A-Fa-f\\d]{2}){5}"
                     },
                     {
-                        name: "UUID",
-                        value: "[0-9a-fA-F]{8}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{12}"
-                    },
-                    {
                         name: "Date (yyyy-mm-dd)",
                         value: "((?:19|20)\\d\\d)[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01])"
                     },
@@ -86,6 +82,10 @@ class RegularExpression extends Operation {
                     {
                         name: "Strings",
                         value: "[A-Za-z\\d/\\-:.,_$%\\x27\"()<>= !\\[\\]{}@]{4,}"
+                    },
+                    {
+                        name: "UUID (any version)",
+                        value: "[0-9a-fA-F]{8}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{4}\\b-[0-9a-fA-F]{12}"
                     },
                 ],
                 "target": 1

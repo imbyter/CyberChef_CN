@@ -39,12 +39,58 @@ class HTMLCategory {
      */
     toHtml() {
         const catName = "cat" + this.name.replace(/[\s/\-:_]/g, "");
+        let catTitle = (this.name === "Favourites" ? "收藏夹" : this.name);
+        if (this.name === "Data format") {
+            catTitle = "数据格式化";
+        }
+        if (this.name === "Encryption / Encoding") {
+            catTitle = "加解密/编码";
+        }
+        if (this.name === "Public Key") {
+            catTitle = "非对称加密";
+        }
+        if (this.name === "Arithmetic / Logic") {
+            catTitle = "算术/逻辑";
+        }
+        if (this.name === "Networking") {
+            catTitle = "网络";
+        }
+        if (this.name === "Language") {
+            catTitle = "语言";
+        }
+        if (this.name === "Utils") {
+            catTitle = "实用工具";
+        }
+        if (this.name === "Date / Time") {
+            catTitle = "日期/时间";
+        }
+        if (this.name === "Extractors") {
+            catTitle = "数据提取";
+        }
+        if (this.name === "Compression") {
+            catTitle = "压缩/解压";
+        }
+        if (this.name === "Hashing") {
+            catTitle = "哈希";
+        }
+        if (this.name === "Code tidy") {
+            catTitle = "代码格式化";
+        }
+        if (this.name === "Forensics") {
+            catTitle = "数据取证";
+        }
+        if (this.name === "Multimedia") {
+            catTitle = "多媒体";
+        }
+        if (this.name === "Other") {
+            catTitle = "其它";
+        }
+        if (this.name === "Flow control") {
+            catTitle = "流程控制";
+        }
         let html = `<div class="panel category">
         <a class="category-title" data-toggle="collapse" data-target="#${catName}">
-            ${this.name}
-            <span class="op-count hidden">
-                ${this.opList.length}
-            </span>
+            ${catTitle}
         </a>
         <div id="${catName}" class="panel-collapse collapse ${(this.selected ? " show" : "")}" data-parent="#categories">
             <ul class="op-list">`;

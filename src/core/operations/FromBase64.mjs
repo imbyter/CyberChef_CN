@@ -20,7 +20,7 @@ class FromBase64 extends Operation {
 
         this.name = "From Base64";
         this.module = "Default";
-        this.description = "Base64 is a notation for encoding arbitrary byte data using a restricted set of symbols that can be conveniently used by humans and processed by computers.<br><br>This operation decodes data from an ASCII Base64 string back into its raw format.<br><br>e.g. <code>aGVsbG8=</code> becomes <code>hello</code>";
+        this.description = "Base64解码<br><br>Base64是一种使用有限的符号集对任意字节数据进行编码的表示法，这些符号集可以方便地由我们使用并由计算机处理。<br><br>本操作能够将ASCII Base64字符串中的数据解码回其原始格式。<br><br>比如 <code>aGVsbG8=</code> 还原为 <code>hello</code>";
         this.infoURL = "https://wikipedia.org/wiki/Base64";
         this.inputType = "string";
         this.outputType = "byteArray";

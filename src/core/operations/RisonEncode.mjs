@@ -20,7 +20,7 @@ class RisonEncode extends Operation {
         super();
 
         this.name = "Rison Encode";
-        this.module = "Encodings";
+        this.module = "Default";
         this.description = "Rison, a data serialization format optimized for compactness in URIs. Rison is a slight variation of JSON that looks vastly superior after URI encoding. Rison still expresses exactly the same set of data structures as JSON, so data can be translated back and forth without loss or guesswork.";
         this.infoURL = "https://github.com/Nanonid/rison";
         this.inputType = "Object";
@@ -28,8 +28,13 @@ class RisonEncode extends Operation {
         this.args = [
             {
                 name: "Encode Option",
-                type: "option",
-                value: ["Encode", "Encode Object", "Encode Array", "Encode URI"]
+                type: "editableOption",
+                value: [
+                    { name: "Encode", value: "Encode", },
+                    { name: "Encode Object", value: "Encode Object", },
+                    { name: "Encode Array", value: "Encode Array", },
+                    { name: "Encode URI", value: "Encode URI", }
+                ]
             },
         ];
     }
@@ -50,9 +55,8 @@ class RisonEncode extends Operation {
                 return rison.encode_array(input);
             case "Encode URI":
                 return rison.encode_uri(input);
-            default:
-                throw new OperationError("Invalid encode option");
         }
+        throw new OperationError("Invalid encode option");
     }
 }
 

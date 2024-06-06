@@ -22,7 +22,7 @@ class MurmurHash3 extends Operation {
         super();
 
         this.name = "MurmurHash3";
-        this.module = "Hashing";
+        this.module = "Default";
         this.description = "Generates a MurmurHash v3 for a string input and an optional seed input";
         this.infoURL = "https://wikipedia.org/wiki/MurmurHash";
         this.inputType = "string";
@@ -115,7 +115,11 @@ class MurmurHash3 extends Operation {
     * @return {number} 32-bit signed integer
     */
     unsignedToSigned(value) {
-        return value & 0x80000000 ? -0x100000000 + value : value;
+        if (value & 0x80000000) {
+            return -0x100000000 + value;
+        } else {
+            return value;
+        }
     }
 
     /**

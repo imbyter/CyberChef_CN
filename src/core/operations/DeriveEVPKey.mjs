@@ -62,13 +62,11 @@ class DeriveEVPKey extends Operation {
      * @returns {string}
      */
     run(input, args) {
-        const passphrase = CryptoJS.enc.Latin1.parse(
-                Utils.convertToByteString(args[0].string, args[0].option)),
+        const passphrase = Utils.convertToByteString(args[0].string, args[0].option),
             keySize = args[1] / 32,
             iterations = args[2],
             hasher = args[3],
-            salt = CryptoJS.enc.Latin1.parse(
-                Utils.convertToByteString(args[4].string, args[4].option)),
+            salt = Utils.convertToByteString(args[4].string, args[4].option),
             key = CryptoJS.EvpKDF(passphrase, salt, { // lgtm [js/insufficient-password-hash]
                 keySize: keySize,
                 hasher: CryptoJS.algo[hasher],

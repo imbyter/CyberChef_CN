@@ -41,7 +41,7 @@ class FileDetailsPanel {
         dom.innerHTML = `
             <div class="${this.hidden ? "file-details-toggle-hidden" : "file-details-toggle-shown"}"
                 data-toggle="tooltip"
-                title="${this.hidden ? "Show" : "Hide"} file details">
+                title="${this.hidden ? "显示" : "隐藏"} 文件细节">
                 ${this.hidden ? "&#10096;" : "&#10097;"}
             </div>
             <p class="file-details-heading">File details</p>

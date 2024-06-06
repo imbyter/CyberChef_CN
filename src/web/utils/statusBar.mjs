@@ -6,7 +6,6 @@
 
 import {showPanel} from "@codemirror/view";
 import {CHR_ENC_SIMPLE_LOOKUP, CHR_ENC_SIMPLE_REVERSE_LOOKUP} from "../../core/lib/ChrEnc.mjs";
-import { eolCodeToName, eolSeqToCode } from "./editorUtils.mjs";
 
 /**
  * A Status bar extension for CodeMirror
@@ -24,8 +23,6 @@ class StatusBarPanel {
         this.eolHandler = opts.eolHandler;
         this.chrEncHandler = opts.chrEncHandler;
         this.chrEncGetter = opts.chrEncGetter;
-        this.getEncodingState = opts.getEncodingState;
-        this.getEOLState = opts.getEOLState;
         this.htmlOutput = opts.htmlOutput;
 
         this.eolVal = null;
@@ -44,8 +41,8 @@ class StatusBarPanel {
         const rhs = document.createElement("div");
 
         dom.className = "cm-status-bar";
-        dom.setAttribute("data-help-title", `${this.label} status bar`);
-        dom.setAttribute("data-help", `This status bar provides information about data in the ${this.label}. Help topics are available for each of the components by activating help when hovering over them.`);
+        dom.setAttribute("data-help-title", `${this.label} 状态条`);
+        dom.setAttribute("data-help", `此状态栏提供有关 ${this.label} 中数据的信息，通过在每个组件上悬停时激活帮助，可以为它们提供使用指导。`);
         lhs.innerHTML = this.constructLHS();
         rhs.innerHTML = this.constructRHS();
 
@@ -95,12 +92,22 @@ class StatusBarPanel {
         // preventDefault is required to stop the URL being modified and popState being triggered
         e.preventDefault();
 
-        const eolCode = e.target.getAttribute("data-val");
-        if (!eolCode) return;
+        const eolLookup = {
+            "LF": "\u000a",
+            "VT": "\u000b",
+            "FF": "\u000c",
+            "CR": "\u000d",
+            "CRLF": "\u000d\u000a",
+            "NEL": "\u0085",
+            "LS": "\u2028",
+            "PS": "\u2029"
+        };
+        const eolval = eolLookup[e.target.getAttribute("data-val")];
+
+        if (eolval === undefined) return;
 
         // Call relevant EOL change handler
-        this.eolHandler(e.target.getAttribute("data-val"), true);
-
+        this.eolHandler(eolval);
         hideElement(e.target.closest(".cm-status-bar-select-content"));
     }
 
@@ -117,7 +124,7 @@ class StatusBarPanel {
 
         if (isNaN(chrEncVal)) return;
 
-        this.chrEncHandler(chrEncVal, true);
+        this.chrEncHandler(chrEncVal);
         this.updateCharEnc(chrEncVal);
         hideElement(e.target.closest(".cm-status-bar-select-content"));
     }
@@ -214,34 +221,25 @@ class StatusBarPanel {
      * @param {EditorState} state
      */
     updateEOL(state) {
-        if (this.getEOLState() < 2 && state.lineBreak === this.eolVal) return;
+        if (state.lineBreak === this.eolVal) return;
+
+        const eolLookup = {
+            "\u000a": ["LF", "Line Feed"],
+            "\u000b": ["VT", "Vertical Tab"],
+            "\u000c": ["FF", "Form Feed"],
+            "\u000d": ["CR", "Carriage Return"],
+            "\u000d\u000a": ["CRLF", "Carriage Return + Line Feed"],
+            "\u0085": ["NEL", "Next Line"],
+            "\u2028": ["LS", "Line Separator"],
+            "\u2029": ["PS", "Paragraph Separator"]
+        };
 
         const val = this.dom.querySelector(".eol-value");
         const button = val.closest(".cm-status-bar-select-btn");
-        let eolCode = eolSeqToCode[state.lineBreak];
-        let eolName = eolCodeToName[eolCode];
-
-        switch (this.getEOLState()) {
-            case 1: // Detected
-                val.classList.add("font-italic");
-                eolCode += " (detected)";
-                eolName += " (detected)";
-                // Pulse
-                val.classList.add("pulse");
-                setTimeout(() => {
-                    val.classList.remove("pulse");
-                }, 2000);
-                break;
-            case 0: // Unset
-            case 2: // Manually set
-            default:
-                val.classList.remove("font-italic");
-                break;
-        }
-
-        val.textContent = eolCode;
-        button.setAttribute("title", `End of line sequence:<br>${eolName}`);
-        button.setAttribute("data-original-title", `End of line sequence:<br>${eolName}`);
+        const eolName = eolLookup[state.lineBreak];
+        val.textContent = eolName[0];
+        button.setAttribute("title", `End of line sequence:<br>${eolName[1]}`);
+        button.setAttribute("data-original-title", `End of line sequence:<br>${eolName[1]}`);
         this.eolVal = state.lineBreak;
     }
 
@@ -251,32 +249,14 @@ class StatusBarPanel {
      */
     updateCharEnc() {
         const chrEncVal = this.chrEncGetter();
-        if (this.getEncodingState() < 2 && chrEncVal === this.chrEncVal) return;
+        if (chrEncVal === this.chrEncVal) return;
 
-        let name = CHR_ENC_SIMPLE_REVERSE_LOOKUP[chrEncVal] ? CHR_ENC_SIMPLE_REVERSE_LOOKUP[chrEncVal] : "Raw Bytes";
+        const name = CHR_ENC_SIMPLE_REVERSE_LOOKUP[chrEncVal] ? CHR_ENC_SIMPLE_REVERSE_LOOKUP[chrEncVal] : "Raw Bytes";
 
         const val = this.dom.querySelector(".chr-enc-value");
         const button = val.closest(".cm-status-bar-select-btn");
-
-        switch (this.getEncodingState()) {
-            case 1: // Detected
-                val.classList.add("font-italic");
-                name += " (detected)";
-                // Pulse
-                val.classList.add("pulse");
-                setTimeout(() => {
-                    val.classList.remove("pulse");
-                }, 2000);
-                break;
-            case 0: // Unset
-            case 2: // Manually set
-            default:
-                val.classList.remove("font-italic");
-                break;
-        }
-
         val.textContent = name;
-        button.setAttribute("title", `${this.label} character encoding:<br>${name}`);
+        button.setAttribute("title", `${this.label} 字符编码:<br>${name}`);
         button.setAttribute("data-original-title", `${this.label} character encoding:<br>${name}`);
         this.chrEncVal = chrEncVal;
     }
@@ -344,21 +324,21 @@ class StatusBarPanel {
      */
     constructLHS() {
         return `
-            <span data-toggle="tooltip" title="${this.label} length" data-help-title="${this.label} length" data-help="This number represents the number of characters in the ${this.label}.<br><br>The CRLF end of line separator is counted as two characters which impacts this value.">
+            <span data-toggle="tooltip" title="${this.label} 长度" data-help-title="${this.label} 长度" data-help="This number represents the number of characters in the ${this.label}.<br><br>The CRLF end of line separator is counted as two characters which impacts this value.">
                 <i class="material-icons">abc</i>
                 <span class="stats-length-value"></span>
             </span>
-            <span data-toggle="tooltip" title="Number of lines"  data-help-title="Number of lines" data-help="This number represents the number of lines in the ${this.label}. Lines are separated by the End of Line Sequence which can be changed using the EOL selector at the far right of this status bar.">
+            <span data-toggle="tooltip" title="行数"  data-help-title="行数" data-help="This number represents the number of lines in the ${this.label}. Lines are separated by the End of Line Sequence which can be changed using the EOL selector at the far right of this status bar.">
                 <i class="material-icons">sort</i>
                 <span class="stats-lines-value"></span>
             </span>
 
-            <span class="sel-info" data-toggle="tooltip" title="Main selection" data-help-title="Main selection" data-help="These numbers show which offsets have been selected and how many characters are in the current selection. If multiple selections are made, these numbers refer to the latest one. ">
+            <span class="sel-info" data-toggle="tooltip" title="主要选择" data-help-title="Main selection" data-help="These numbers show which offsets have been selected and how many characters are in the current selection. If multiple selections are made, these numbers refer to the latest one. ">
                 <i class="material-icons">highlight_alt</i>
                 <span class="sel-start-value"></span>\u279E<span class="sel-end-value"></span>
                 (<span class="sel-length-value"></span> selected)
             </span>
-            <span class="cur-offset-info" data-toggle="tooltip" title="Cursor offset" data-help-title="Cursor offset" data-help="This number indicates what the current offset of the cursor is from the beginning of the ${this.label}.<br><br>The CRLF end of line separator is counted as two characters which impacts this value.">
+            <span class="cur-offset-info" data-toggle="tooltip" title="光标偏移" data-help-title="光标偏移" data-help="This number indicates what the current offset of the cursor is from the beginning of the ${this.label}.<br><br>The CRLF end of line separator is counted as two characters which impacts this value.">
                 <i class="material-icons">location_on</i>
                 <span class="cur-offset-value"></span>
             </span>`;
@@ -386,13 +366,13 @@ class StatusBarPanel {
         }
 
         return `
-            <span class="baking-time-info" style="display: none" data-toggle="tooltip" data-html="true" title="Baking time" data-help-title="Baking time" data-help="The baking time is the total time between data being read from the input, processed, and then displayed in the output.<br><br>The 'Threading overhead' value accounts for the transfer of data between different processing threads, as well as some garbage collection. It is not included in the overall bake time displayed in the status bar as it is largely influenced by background operating system and browser activity which can fluctuate significantly.">
+            <span class="baking-time-info" style="display: none" data-toggle="tooltip" data-html="true" title="处理时间" data-help-title="处理时间" data-help="处理时间指从输入中读取、处理数据，然后在输出中显示数据之间的总时间。<br><br>“线程开销”值说明了不同处理线程之间的数据传输以及一些回收处理。它不包括在状态栏中显示的总体处理时间，因为它在很大程度上受到后台操作系统和浏览器活动的影响，这些活动可能会大幅波动。">
                 <i class="material-icons">schedule</i>
                 <span class="baking-time-value"></span>ms
             </span>
 
-            <div class="cm-status-bar-select chr-enc-select" data-help-title="${this.label} character encoding" data-help="${chrEncHelpText}">
-                <span class="cm-status-bar-select-btn" data-toggle="tooltip" data-html="true" data-placement="left" title="${this.label} character encoding">
+            <div class="cm-status-bar-select chr-enc-select" data-help-title="${this.label} 字符编码" data-help="${chrEncHelpText}">
+                <span class="cm-status-bar-select-btn" data-toggle="tooltip" data-html="true" data-placement="left" title="${this.label} 字符编码">
                     <i class="material-icons">text_fields</i> <span class="chr-enc-value">Raw Bytes</span>
                 </span>
                 <div class="cm-status-bar-select-content">
@@ -411,8 +391,8 @@ class StatusBarPanel {
                 </div>
             </div>
 
-            <div class="cm-status-bar-select eol-select" data-help-title="${this.label} EOL sequence" data-help="${eolHelpText}">
-                <span class="cm-status-bar-select-btn" data-toggle="tooltip" data-html="true" data-placement="left" title="End of line sequence">
+            <div class="cm-status-bar-select eol-select" data-help-title="${this.label} EOL序列" data-help="${eolHelpText}">
+                <span class="cm-status-bar-select-btn" data-toggle="tooltip" data-html="true" data-placement="left" title="行尾序列">
                     <i class="material-icons">keyboard_return</i> <span class="eol-value"></span>
                 </span>
                 <div class="cm-status-bar-select-content no-select">
